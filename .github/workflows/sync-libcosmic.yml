@@ -1,0 +1,60 @@
+name: Sync libcosmic
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 7 * * 1"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-libcosmic
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Find the libcosmic revision used by COSMIC applets
+        id: upstream
+        run: |
+          git clone --depth=1 https://github.com/pop-os/cosmic-applets.git /tmp/cosmic-applets
+          revision="$({
+            awk '
+              /^name = "libcosmic"$/ { package = 1; next }
+              package && /^\[\[package\]\]$/ { package = 0 }
+              package && /^source = "git\+https:\/\/github.com\/pop-os\/libcosmic#/ {
+                sub(/.*#/, "")
+                gsub(/"/, "")
+                print
+                exit
+              }
+            ' /tmp/cosmic-applets/Cargo.lock
+          })"
+          test -n "$revision"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+
+      - name: Update the lockfile
+        env:
+          REVISION: ${{ steps.upstream.outputs.revision }}
+        run: |
+          sed -i -E 's|^rev = ".*"|rev = "'"$REVISION"'"|' Cargo.toml
+          cargo update -p libcosmic
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/sync-libcosmic
+          delete-branch: true
+          commit-message: "chore: sync libcosmic with cosmic-applets"
+          title: "chore: sync libcosmic with cosmic-applets"
+          body: |
+            Updates the locked libcosmic revision to the one currently used by
+            pop-os/cosmic-applets: `${{ steps.upstream.outputs.revision }}`.
+
+            This PR is automated but should be merged only after CI and runtime
+            testing on COSMIC pass.
