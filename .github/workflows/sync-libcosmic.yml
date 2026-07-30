@@ -46,6 +46,7 @@ jobs:
           cargo update -p libcosmic
 
       - name: Create pull request
+        id: create-pull-request
         uses: peter-evans/create-pull-request@v7
         with:
           branch: automation/sync-libcosmic
@@ -56,5 +57,12 @@ jobs:
             Updates the locked libcosmic revision to the one currently used by
             pop-os/cosmic-applets: `${{ steps.upstream.outputs.revision }}`.
 
-            This PR is automated but should be merged only after CI and runtime
-            testing on COSMIC pass.
+            This PR auto-merges after required checks pass.
+
+      - name: Enable auto-merge
+        if: steps.create-pull-request.outputs.pull-request-number
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
+          merge-method: squash
