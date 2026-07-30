@@ -1,0 +1,13 @@
+[Unit]
+Description=COSMIC Hot Corners
+PartOf=cosmic-session.target
+After=cosmic-session.target
+
+[Service]
+ExecStart=/usr/bin/cosmic-hot-corners --daemon
+Restart=on-failure
+RestartSec=2
+Slice=app.slice
+
+[Install]
+WantedBy=cosmic-session.target

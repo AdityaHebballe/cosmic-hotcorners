@@ -84,6 +84,18 @@ echo 'ShowWorkspaces' > ~/.config/cosmic/io.github.cosmic-hot-corners/v1/top_lef
 
 ## Installation
 
+### AUR (Arch / CachyOS)
+
+```sh
+yay -S cosmic-corners-enhanced-git
+systemctl --user enable --now io.github.cosmic-hot-corners.service
+```
+
+The package installs the COSMIC-only user service at
+`/usr/lib/systemd/user/io.github.cosmic-hot-corners.service`; pacman removes it
+again when the package is uninstalled. Enabling it is deliberately per-user, so
+it starts only in your COSMIC session.
+
 ### 1. Install build dependencies
 
 ```sh
@@ -97,6 +109,7 @@ git clone https://github.com/your-username/cosmic-hotcorners
 cd cosmic-hotcorners
 just build-release
 sudo just install
+just enable-service
 ```
 
 ### 3. Open the settings
@@ -109,21 +122,19 @@ cosmic-hot-corners
 
 Or open **Hot Corners Settings** from the COSMIC app drawer.
 
-### 4. Autostart
+### 4. Service management
 
-To start the daemon automatically on login:
-
-```sh
-just autostart
-```
-
-To disable autostart:
+The installed user service starts the daemon only in COSMIC sessions:
 
 ```sh
-just autostart-disable
+just enable-service
 ```
 
-This installs/removes a `.desktop` file in `~/.config/autostart/`. The daemon does not run as a systemd service — it is launched by the COSMIC session manager alongside other autostart applications.
+To stop it and prevent future starts:
+
+```sh
+just disable-service
+```
 
 Configuration changes made in the settings GUI are applied instantly — the running daemon reloads config automatically without needing a restart.
 

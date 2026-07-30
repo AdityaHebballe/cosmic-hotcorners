@@ -13,6 +13,7 @@ cargo-target-dir := env('CARGO_TARGET_DIR', 'target')
 # Application's appstream metadata
 appdata-src := 'app.metainfo.xml'
 appdata := appid + '.metainfo.xml'
+service := appid + '.service'
 # Application's desktop entry
 desktop := appid + '.desktop'
 # Settings app desktop entry
@@ -23,6 +24,7 @@ icon-svg := appid + '.svg'
 # Install destinations
 base-dir := absolute_path(clean(rootdir / prefix))
 appdata-dst := base-dir / 'share' / 'appdata' / appdata
+service-dst := base-dir / 'lib' / 'systemd' / 'user' / service
 bin-dst := base-dir / 'bin' / name
 desktop-dst := base-dir / 'share' / 'applications' / desktop
 desktop-settings-dst := base-dir / 'share' / 'applications' / desktop-settings
@@ -78,7 +80,17 @@ install:
     install -Dm0644 {{ 'resources' / desktop }} {{desktop-dst}}
     install -Dm0644 {{ 'resources' / desktop-settings }} {{desktop-settings-dst}}
     install -Dm0644 {{ 'resources' / appdata-src }} {{appdata-dst}}
+    install -Dm0644 {{ 'resources' / service }} {{service-dst}}
     install -Dm0644 {{ 'resources' / 'icons' / 'hicolor' / 'scalable' / 'apps' / 'icon.svg' }} {{icon-svg-dst}}
+
+# Enable the daemon only for COSMIC sessions, and start it now.
+enable-service:
+    systemctl --user daemon-reload
+    systemctl --user enable --now {{service}}
+    rm -f ~/.config/autostart/{{desktop}}
+
+disable-service:
+    systemctl --user disable --now {{service}}
 
 # Enable autostart for the current user
 autostart:

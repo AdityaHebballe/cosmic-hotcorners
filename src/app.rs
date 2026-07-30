@@ -9,6 +9,7 @@ use cosmic::core::AppType;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::event::listen_with;
 use cosmic::iced::event::wayland::{Event as WaylandEvent, OutputEvent};
+use cosmic::iced::futures::{SinkExt, Stream, StreamExt, stream as futures_stream};
 use cosmic::iced::platform_specific::runtime::wayland::layer_surface::{
     IcedOutput, SctkLayerSurfaceSettings,
 };
@@ -16,7 +17,7 @@ use cosmic::iced::platform_specific::shell::commands::layer_surface::{
     Anchor, KeyboardInteractivity, Layer, destroy_layer_surface,
 };
 use cosmic::iced::runtime::platform_specific::wayland::CornerRadius;
-use cosmic::iced::{Border, Event, Length, Subscription, mouse, window};
+use cosmic::iced::{Border, Event, Length, Subscription, mouse, stream, window};
 use cosmic::surface::action::{LiveSettings, simple_layer_shell};
 use cosmic::widget;
 use std::time::Duration;
@@ -151,7 +152,13 @@ impl cosmic::Application for AppModel {
             .watch_config::<Config>(Self::APP_ID)
             .map(|update| Message::ConfigUpdated(update.config));
 
-        Subscription::batch([pointer_events, config_watch])
+        Subscription::batch([
+            pointer_events,
+            config_watch,
+            Subscription::run_with("hot-corners-workspaces", |_| {
+                workspace_visibility_subscription()
+            }),
+        ])
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
@@ -278,6 +285,67 @@ impl cosmic::Application for AppModel {
         }
         Task::none()
     }
+}
+
+#[zbus::proxy(interface = "com.system76.CosmicWorkspaces")]
+trait CosmicWorkspaces {
+    #[zbus(signal)]
+    async fn shown(&self);
+
+    #[zbus(signal)]
+    async fn hidden(&self);
+}
+
+fn workspace_visibility_subscription() -> impl Stream<Item = Message> {
+    stream::channel(
+        8,
+        |mut output: cosmic::iced::futures::channel::mpsc::Sender<Message>| async move {
+            let connection = match zbus::Connection::session().await {
+                Ok(connection) => connection,
+                Err(err) => {
+                    eprintln!("[hot-corners] could not connect to the session bus: {err}");
+                    return;
+                }
+            };
+            let proxy = match CosmicWorkspacesProxy::new(
+                &connection,
+                "com.system76.CosmicWorkspaces",
+                "/com/system76/CosmicWorkspaces",
+            )
+            .await
+            {
+                Ok(proxy) => proxy,
+                Err(err) => {
+                    eprintln!("[hot-corners] could not watch workspace visibility: {err}");
+                    return;
+                }
+            };
+            let shown = match proxy.receive_shown().await {
+                Ok(stream) => stream.map(|_| true),
+                Err(err) => {
+                    eprintln!("[hot-corners] could not watch workspace-open events: {err}");
+                    return;
+                }
+            };
+            let hidden = match proxy.receive_hidden().await {
+                Ok(stream) => stream.map(|_| false),
+                Err(err) => {
+                    eprintln!("[hot-corners] could not watch workspace-close events: {err}");
+                    return;
+                }
+            };
+            let mut events = futures_stream::select(shown, hidden);
+            while let Some(visible) = events.next().await {
+                if output
+                    .send(Message::WorkspacesVisibilityChanged(visible))
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        },
+    )
 }
 
 impl AppModel {
