@@ -4,7 +4,7 @@ use crate::config::{Config, CornerAction};
 use cosmic::app::Task;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::Length;
-use cosmic::widget::{self, Row, Column};
+use cosmic::widget::{self, Column, Row};
 use cosmic::{ApplicationExt, Element};
 
 static ACTION_LABELS: &[&str] = &[
@@ -178,7 +178,7 @@ impl cosmic::Application for SettingsApp {
             }
             Message::CommandChanged(corner, cmd) => {
                 self.commands[corner.index()] = cmd;
-                if self.selected[corner.index()] == 5 {
+                if self.selected[corner.index()] == 3 {
                     self.apply_corner(corner);
                 }
             }
@@ -200,11 +200,9 @@ impl SettingsApp {
 
         let mut section = widget::list_column().add(widget::settings::item(
             "Action",
-            widget::dropdown(
-                ACTION_LABELS,
-                Some(self.selected[i]),
-                move |idx| Message::ActionSelected(corner, idx),
-            ),
+            widget::dropdown(ACTION_LABELS, Some(self.selected[i]), move |idx| {
+                Message::ActionSelected(corner, idx)
+            }),
         ));
 
         if self.selected[i] == 3 {

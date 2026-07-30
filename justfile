@@ -11,6 +11,7 @@ prefix := '/usr'
 cargo-target-dir := env('CARGO_TARGET_DIR', 'target')
 
 # Application's appstream metadata
+appdata-src := 'app.metainfo.xml'
 appdata := appid + '.metainfo.xml'
 # Application's desktop entry
 desktop := appid + '.desktop'
@@ -76,7 +77,7 @@ install:
     install -Dm0755 {{ cargo-target-dir / 'release' / name }} {{bin-dst}}
     install -Dm0644 {{ 'resources' / desktop }} {{desktop-dst}}
     install -Dm0644 {{ 'resources' / desktop-settings }} {{desktop-settings-dst}}
-    install -Dm0644 {{ 'resources' / appdata }} {{appdata-dst}}
+    install -Dm0644 {{ 'resources' / appdata-src }} {{appdata-dst}}
     install -Dm0644 {{ 'resources' / 'icons' / 'hicolor' / 'scalable' / 'apps' / 'icon.svg' }} {{icon-svg-dst}}
 
 # Enable autostart for the current user
@@ -135,4 +136,3 @@ flatpak-run:
 # Run the installed Flatpak (settings GUI)
 flatpak-run-settings:
     flatpak run io.github.cosmic-hot-corners
-
