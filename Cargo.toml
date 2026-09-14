@@ -19,7 +19,7 @@ zbus = { version = "5.15", default-features = false, features = ["tokio"] }
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"
-rev = "511384f6206527cf87369da67a9164831afbabef"
+rev = "a401af8b1c54a8abd393b8c5b7c8809402f83850"
 default-features = false
 features = ["tokio", "wayland", "multi-window", "winit"]
 
